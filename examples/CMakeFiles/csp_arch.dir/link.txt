@@ -1,0 +1,1 @@
+/usr/bin/cc -Os -DNDEBUG CMakeFiles/csp_arch.dir/csp_arch.c.o -o csp_arch  -Wl,-rpath,/home/SirPanda/Desktop/99.Thesis/02.libcsp/libcsp ../liblibcsp.so 

@@ -1,0 +1,1 @@
+/usr/bin/cc -Os -DNDEBUG CMakeFiles/zmqproxy.dir/zmqproxy.c.o -o zmqproxy  -Wl,-rpath,/home/SirPanda/Desktop/99.Thesis/02.libcsp/libcsp ../liblibcsp.so -lzmq 
