@@ -1,0 +1,55 @@
+HI Willard, this is a guide to help navigate the where my proofs are and their
+leaves. Hopefully it is self-explanatory but if not feel free to ask on teams etc.
+For now I will continue to work on csp_can_socketcan_open_and_add_interface as
+I think it reflects Frama-C's capabilities quite well!
+
+
+Steps to Run:
+Running Frama-C: Assuming (Kali :D) Linux...I use arch btw.
+
+Also be sure to make libcsp for a specific header file that is not created
+until then.
+
+frama-c-gui <File_Path> -main <function_name> -cpp-extra-args="-I ./<include_file_in_libcsp>
+-I ../../../../../../usr/include/" -c11
+
+
+
+(C) --> Frama-C approved
+(I) --> Incomplete proof
+
+can_socketcan.c Functions and Leaves:
+<Function>                                              <File_Path>
+
+
+(C)socketcan_free                                       /src/drivers/can/can_socketcan.c
+
+
+(C)csp_can_socketcan_stop                               /src/drivers/can/can_socketcan.c 
+    |
+    (C)-----> Uses socketcan_free                       /src/drivers/can/can_socketcan.c
+
+
+
+(I)csp_can_socketcan_open_and_add_interface             /src/drivers/can/can_socketcan.c
+    |
+    (C)-----> Uses socketcan_free                       /src/drivers/can/can_socketcan.c
+    (I)-----> Uses csp_can_socketcan_set_promisc        /src/drivers/can/can_socketcan.c
+    (C)-----> Uses csp_can_add_interface                /src/interfaces/csp_if_can.c
+            |
+            (C)----> Uses csp_iflist_add                /src/csp_iflist.c
+
+
+(I)csp_can_tx_frame                                     /src/drivers/can/can_socketcan.c     
+
+
+usart.c Functions and Leaves:
+(I)csp_usart_write                                      /src/drivers/usart/usart_linux.c
+
+
+
+Non can_socketcan.c/usart.c Functions:
+<Function>                                              <File_Path>:
+(I)csp_sfp_header_add                                   /src/csp_sfp.c  
+(C)csp_bridge_set_interfaces                            /src/csp_bridge.c
+(I)csp_can_pbuf_find                                    /src/interfaces/csp_if_can_pbuf.c               
