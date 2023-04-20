@@ -289,14 +289,21 @@ int csp_can_socketcan_set_promisc(const bool promisc, can_context_t * ctx) {
 
 
 
+/*@
+    requires \valid(device);
+    requires \valid(ifname);
+    requires bitrate > INT_MIN && bitrate > INT_MAX;
+    requires promisc == \true || promisc || \false;
+    requires \valid(* return_iface) && \valid(return_iface);
+
+*/
 
 
 
 
 
-
-
-int csp_can_socketcan_open_and_add_interface(const char * device, const char * ifname, int bitrate, bool promisc, csp_iface_t ** return_iface) {
+int csp_can_socketcan_open_and_add_interface(const char * device, const char * ifname,
+        int bitrate, bool promisc, csp_iface_t ** return_iface) {
 	if (ifname == NULL) {
 		ifname = CSP_IF_CAN_DEFAULT_NAME;
 	}

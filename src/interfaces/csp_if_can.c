@@ -506,11 +506,11 @@ int csp_can2_tx(csp_iface_t * iface, uint16_t via, csp_packet_t * packet, int fr
 
 		behavior invalid_interface_no_name:
 			assumes invalid_interface_no_name(iface);
-			ensures \result != 1;
+			ensures \result != CSP_ERR_INVAL;
 
 		behavior invalid_interface_no_data:
 			assumes invalid_interface_no_data(iface);
-			ensures \result != 1;
+			ensures \result != CSP_ERR_INVAL;
 
  */
 int csp_can_add_interface(csp_iface_t * iface) {

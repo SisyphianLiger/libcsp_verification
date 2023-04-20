@@ -115,10 +115,10 @@ csp_iface_t * csp_iflist_get_by_index(int idx) {
 		requires invalid_ifc(ifc);
 
 		behavior valid_ifc:
-			ensures \result == 0;
+			ensures \result == CSP_ERR_NONE;
 
 		behavior invalid_ifc:
-			ensures \result != 0;
+			ensures \result == CSP_ERR_ALREADY;
 */
 int csp_iflist_add(csp_iface_t * ifc) {
 

@@ -15,8 +15,9 @@ frama-c-gui <File_Path> -main <function_name> -cpp-extra-args="-I ./<include_fil
 
 
 
-(C) --> Frama-C approved
-(I) --> Incomplete proof
+(C-RTE) --> Frama-C approved && -wp-rte
+(C)     --> Frama-C approved
+(I)     --> Incomplete proof
 
 can_socketcan.c Functions and Leaves:
 <Function>                                              <File_Path>
@@ -33,11 +34,11 @@ can_socketcan.c Functions and Leaves:
 
 (I)csp_can_socketcan_open_and_add_interface             /src/drivers/can/can_socketcan.c
     |
-    (C)-----> Uses socketcan_free                       /src/drivers/can/can_socketcan.c
-    (C)-----> Uses csp_can_socketcan_set_promisc        /src/drivers/can/can_socketcan.c
-    (C)-----> Uses csp_can_add_interface                /src/interfaces/csp_if_can.c
+    (C-RTE)-> Uses socketcan_free                       /src/drivers/can/can_socketcan.c
+    (C-RTE)-> Uses csp_can_socketcan_set_promisc        /src/drivers/can/can_socketcan.c
+    (C-RTE)-> Uses csp_can_add_interface                /src/interfaces/csp_if_can.c
             |
-            (C)----> Uses csp_iflist_add                /src/csp_iflist.c
+            (C-RTE)-> Uses csp_iflist_add                /src/csp_iflist.c
 
 
 (I)csp_can_tx_frame                                     /src/drivers/can/can_socketcan.c     
