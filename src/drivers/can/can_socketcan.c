@@ -226,21 +226,24 @@ static int csp_can_tx_frame(void * driver_data, uint32_t id, const uint8_t * dat
 													&& ((ctx -> socket) >= 0);
 
 */
-
+/*@
+    lemma setsockopt_result_success0_or_failure_neg1:
+        \forall int setsockopt_res; setsockopt_res == 0 || setsockopt_res == -1;
+*/
 /*@
 	requires valid_context(ctx);
-	requires promisc == \true || promisc == \false;
+	requires promisc == \true || promisc == \false; 
 
 	behavior invalid_ctx:
-		assumes ctx == \null;
+		assumes \valid(ctx) && (ctx -> socket) == 0 || ctx == \null;
 		ensures \result == CSP_ERR_INVAL;
 
-	behavior valid_ctx_invalid_socketop:
-		assumes valid_context(ctx);
+	behavior invalid_ctx_invalid_socketop:
+		assumes \valid(ctx);
 		ensures \result == CSP_ERR_INVAL;
 
 	behavior valid_ctx_promics:
-		assumes valid_context(ctx);
+		assumes valid_context(ctx) && (ctx -> socket) > 0;
 		ensures \result == CSP_ERR_NONE;
 */
 
@@ -253,7 +256,7 @@ int csp_can_socketcan_set_promisc(const bool promisc, can_context_t * ctx) {
 	};
 	//@ assert valid_context(ctx) && \valid(&filter);
 	if (ctx->socket == 0) {
-	//@ assert (ctx -> socket) == 0;
+	//@ assert (ctx -> socket) == 0 && valid_context(ctx) && \valid(&filter);
 		return CSP_ERR_INVAL;
 	}
 	//@ assert promisc == \true || promisc == \false && valid_context(ctx);
@@ -272,13 +275,14 @@ int csp_can_socketcan_set_promisc(const bool promisc, can_context_t * ctx) {
 	//@ assert valid_context(ctx);
 	// HERE CUBESAT
 	int setsockopt_res = setsockopt(ctx->socket, SOL_CAN_RAW, CAN_RAW_FILTER, &filter, sizeof(filter));
-	if (setsockopt_res < 0) {
-		//@ assert promisc == \true || promisc == \false && valid_context(ctx) && setsockopt_res < 0;
+	if (setsockopt_res == -1) {
+		//@ assert promisc == \true || promisc == \false && valid_context(ctx) && setsockopt_res == -1;
 		csp_print("%s: setsockopt() failed, error: %s\n", __FUNCTION__, strerror(errno));
+        //@assert true;
 		return CSP_ERR_INVAL;
 	}
 
-	//@ assert promisc == \true || promisc == \false && valid_context(ctx) && setsockopt_res >= 0;
+	//@ assert promisc == \true || promisc == \false && valid_context(ctx) && setsockopt_res == 0;
 	return CSP_ERR_NONE;
 }
 

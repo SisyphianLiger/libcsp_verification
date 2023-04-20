@@ -34,7 +34,7 @@ can_socketcan.c Functions and Leaves:
 (I)csp_can_socketcan_open_and_add_interface             /src/drivers/can/can_socketcan.c
     |
     (C)-----> Uses socketcan_free                       /src/drivers/can/can_socketcan.c
-    (I)-----> Uses csp_can_socketcan_set_promisc        /src/drivers/can/can_socketcan.c
+    (C)-----> Uses csp_can_socketcan_set_promisc        /src/drivers/can/can_socketcan.c
     (C)-----> Uses csp_can_add_interface                /src/interfaces/csp_if_can.c
             |
             (C)----> Uses csp_iflist_add                /src/csp_iflist.c
