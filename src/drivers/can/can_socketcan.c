@@ -289,6 +289,24 @@ int csp_can_socketcan_set_promisc(const bool promisc, can_context_t * ctx) {
 
 
 
+
+
+
+
+
+/*@
+  lemma can_do_stop:
+  \forall int can_do_stop; can_do_stop == 0 || can_do_stop == -1;
+
+  lemma can_set_bitrate:
+  \forall int can_set_bitrate; can_set_bitrate == 0 || can_set_bitrate == -1;
+  
+  lemma can_set_restart_ms:
+  \forall int can_set_restart_ms; can_set_restart_ms== 0 || can_set_restart_ms == -1;
+ 
+  lemma can_do_start:
+  \forall int can_do_start; can_do_start == 0 || can_do_start == -1;
+*/
 /*@
     requires \valid(device);
     requires \valid(ifname);
@@ -296,32 +314,55 @@ int csp_can_socketcan_set_promisc(const bool promisc, can_context_t * ctx) {
     requires promisc == \true || promisc || \false;
     requires \valid(* return_iface) && \valid(return_iface);
 
+    assigns * ctx;
+
+    behavior ctx_failure:
+        assumes ctx == \null;
+        ensures \result == CSP_ERR_NOMEM;
+
 */
-
-
-
-
-
 int csp_can_socketcan_open_and_add_interface(const char * device, const char * ifname,
         int bitrate, bool promisc, csp_iface_t ** return_iface) {
+    //@ assert ifname == \null || \valid(ifname);
 	if (ifname == NULL) {
-		ifname = CSP_IF_CAN_DEFAULT_NAME;
+        //@ assert ifname == \null;
+		ifname = CSP_IF_CAN_DEFAULT_NAME; 
+        //@ assert ifname == CSP_IF_CAN_DEFAULT_NAME;
 	}
+    //@ assert \valid(ifname) || ifname == CSP_IF_CAN_DEFAULT_NAME;
 
 	csp_print("INIT %s: device: [%s], bitrate: %d, promisc: %d\n", ifname, device, bitrate, promisc);
+    //@ assert \valid(ifname) || ifname == CSP_IF_CAN_DEFAULT_NAME && \true;
 
 #if (CSP_HAVE_LIBSOCKETCAN)
+    //@ assert \true;
 	/* Set interface up - this may require increased OS privileges */
 	if (bitrate > 0) {
+        // CUBESAT
+        /* 
+         Hmmm...it would seem here that even though we check bitrate that it may be possible to 
+         mess up these function calls (a part of libsocketcan) 
+
+         All functions give 0 for sucess and -1 for failure but we do not account for it
+         https://lalten.github.io/libsocketcan/Documentation/html/group__extern.html
+         */
+        //@ assert bitrate > 0;
+        // BELOW ONLY FOR LEMMA'S
+        int can_do_start = can_do_stop(device);
+        int can_set_bitrate = can_set_bitrate(device, bitrate);
+        int can_set_restart_ms = can_set_restart_ms(device, 100);
+        int can_do_stop = can_do_start(device);
+        // ABOVE ONLY FOR LEMMA'S
 		can_do_stop(device);
 		can_set_bitrate(device, bitrate);
 		can_set_restart_ms(device, 100);
 		can_do_start(device);
 	}
 #endif
-
-	can_context_t * ctx = calloc(1, sizeof(*ctx));
-	if (ctx == NULL) {
+    //@ assert bitrate <= 0;
+	can_context_t * ctx = calloc(1, sizeof(*ctx)); 
+	if (ctx == NULL) {    
+        //@ assert bitrate <= 0 && ctx == \null;
 		return CSP_ERR_NOMEM;
 	}
 	ctx->socket = -1;
@@ -444,22 +485,22 @@ csp_iface_t * csp_can_socketcan_init(const char * device, int bitrate, bool prom
 	behavior invalid_iface:
 		assumes (iface == \null);
 		assigns \nothing;
-		ensures \result != 0;
+		ensures \result == CSP_ERR_DRIVER;
 
 	behavior valid_iface_invalid_pcancel:
 		assumes valid_csp_iface_t_stop(iface);
 		assigns *iface;
-		ensures \result != 0;
+		ensures \result == CSP_ERR_DRIVER;
 
 	behavior valid_iface_invalid_pjoin:
 		assumes valid_csp_iface_t_stop(iface);
 		assigns *iface;
-		ensures \result != 0;
+		ensures \result == CSP_ERR_DRIVER;
 
 	behavior valid_iface_valid_pthreads:
 		assumes valid_csp_iface_t_stop(iface);
 		assigns *iface;
-		ensures \result == 0;
+		ensures \result == CSP_ERR_NONE;
 
 	disjoint behaviors;
 	complete behaviors;
