@@ -308,18 +308,45 @@ int csp_can_socketcan_set_promisc(const bool promisc, can_context_t * ctx) {
   \forall int can_do_start; can_do_start == 0 || can_do_start == -1;
 */
 /*@
+    predicate valid_instantiated_ctx(can_context_t * ctx, char * ifname, int bitrate) = 
+                                            \valid(ctx)
+                                            && (ctx -> ifdata.pbufs == \null) 
+                                            && (ctx -> ifdata.tx_func == csp_can_tx_frame) 
+                                            && (ctx -> iface.driver_data == ctx) 
+                                            && (ctx -> iface.interface_data == &ctx -> ifdata) 
+                                            && bitrate <= 0 && \valid(ctx)
+                                            && (ctx -> socket) == -1 
+                                            && (ctx -> name) == ifname 
+                                            && (ctx->iface.name == ctx->name);
+
+    predicate socket_failure_ctx(can_context_t * ctx) = 
+                                            \valid(ctx)
+                                            && (ctx -> socket) < 0;
+
+
+    predicate socket_success_ctx(can_context_t * ctx) = 
+                                            \valid(ctx)
+                                            && (ctx -> socket) >= 0;
+
+    predicate address_fully_set(struct sockaddr_can addr,struct ifreq ifr) =
+                                                addr.can_family == AF_CAN
+                                                && addr.can_ifindex == ifr.ifr_ifindex;
+*/
+/*@
     requires \valid(device);
     requires \valid(ifname);
     requires bitrate > INT_MIN && bitrate > INT_MAX;
-    requires promisc == \true || promisc || \false;
+    requires promisc == \true || \false;
     requires \valid(* return_iface) && \valid(return_iface);
 
-    assigns * ctx;
+    behavior ctx_failure_or_pthread_error:
+        ensures \result == CSP_ERR_NOMEM; 
 
-    behavior ctx_failure:
-        assumes ctx == \null;
-        ensures \result == CSP_ERR_NOMEM;
+    behavior socket_bind_promisc_interface_failure:
+        ensures \result == CSP_ERR_INVAL; 
 
+    behavior success: 
+        ensures \result == CSP_ERR_NONE; 
 */
 int csp_can_socketcan_open_and_add_interface(const char * device, const char * ifname,
         int bitrate, bool promisc, csp_iface_t ** return_iface) {
@@ -360,71 +387,143 @@ int csp_can_socketcan_open_and_add_interface(const char * device, const char * i
 	}
 #endif
     //@ assert bitrate <= 0;
-	can_context_t * ctx = calloc(1, sizeof(*ctx)); 
+    // Not sure why this if guard is here...maybe is memory overload?	
+    can_context_t * ctx = calloc(1, sizeof(*ctx)); 
 	if (ctx == NULL) {    
         //@ assert bitrate <= 0 && ctx == \null;
 		return CSP_ERR_NOMEM;
 	}
+    
+    //@ assert bitrate <= 0 && \valid(ctx);
 	ctx->socket = -1;
-
+    //@ assert bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1;
+    /*
+     for reference: https://linux.die.net/man/3/strncpy
+        parameters(destination, source, size);
+        result 
+     */
 	strncpy(ctx->name, ifname, sizeof(ctx->name) - 1);
+    //@ assert bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1 && (ctx -> name) == ifname;
 	ctx->iface.name = ctx->name;
+    //@ assert bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1 && (ctx -> name) == ifname && (ctx->iface.name == ctx->name);
 	ctx->iface.interface_data = &ctx->ifdata;
+    //@ assert (ctx -> iface.interface_data == &ctx -> ifdata) && bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1 && (ctx -> name) == ifname && (ctx->iface.name == ctx->name);
 	ctx->iface.driver_data = ctx;
+    //@ assert (ctx -> iface.driver_data == ctx) && (ctx -> iface.interface_data == &ctx -> ifdata) && bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1 && (ctx -> name) == ifname && (ctx->iface.name == ctx->name);
 	ctx->ifdata.tx_func = csp_can_tx_frame;
+    //@ assert (ctx -> ifdata.tx_func == csp_can_tx_frame) && (ctx -> iface.driver_data == ctx) && (ctx -> iface.interface_data == &ctx -> ifdata) && bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1 && (ctx -> name) == ifname && (ctx->iface.name == ctx->name);
 	ctx->ifdata.pbufs = NULL;
-
-	/* Create socket */
+    //@ assert valid_instantiated_ctx(ctx, ifname, bitrate);
+	/* Create socket 
+        https://man7.org/linux/man-pages/man2/socket.2.html 
+        socket(domain, type, protocol);
+    */
 	if ((ctx->socket = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
+        //@ assert socket_failure_ctx(ctx);
 		csp_print("%s[%s]: socket() failed, error: %s\n", __FUNCTION__, ctx->name, strerror(errno));
+        //@ assert socket_failure_ctx(ctx) && \true;
 		socketcan_free(ctx);
+        //@ assert socket_failure_ctx(ctx) && \true;
 		return CSP_ERR_INVAL;
 	}
-
-	/* Locate interface */
+    //@ assert socket_success_ctx(ctx);	
+    /* Locate interface */
 	struct ifreq ifr;
-	strncpy(ifr.ifr_name, device, IFNAMSIZ - 1);
-	if (ioctl(ctx->socket, SIOCGIFINDEX, &ifr) < 0) {
+    //@ assert \true && socket_success_ctx(ctx);	
+    /*
+     for reference: https://linux.die.net/man/3/strncpy
+        parameters(destination, source, size);
+        puts source in destination (for strings)
+     */
+    // ifr.ifr_name == device now.
+    strncpy(ifr.ifr_name, device, IFNAMSIZ - 1);
+    //@ assert socket_success_ctx(ctx) && ifr.ifr_name == device;
+    
+    /*
+       https://man7.org/linux/man-pages/man2/ioctl.2.html 
+       ioctl(file descriptor, requiests, arguments)
+     */
+    int interface_check = ioctl(ctx->socket, SIOCGIFINDEX, &ifr);
+	if (interface_check < 0) {
+        //@ assert interface_check < 0 && socket_success_ctx(ctx);
 		csp_print("%s[%s]: device: [%s], ioctl() failed, error: %s\n", __FUNCTION__, ctx->name, device, strerror(errno));
+        //@ assert interface_check < 0 && socket_success_ctx(ctx) && \true;
 		socketcan_free(ctx);
+        //@ assert interface_check < 0 && socket_success_ctx(ctx) && \true;
 		return CSP_ERR_INVAL;
 	}
-	struct sockaddr_can addr;
-	memset(&addr, 0, sizeof(addr));
+    
+    //@ assert interface_check >= 0 && socket_success_ctx(ctx);
+	struct sockaddr_can addr; 
+    //@ assert interface_check >= 0 && socket_success_ctx(ctx) && \true;
+    /*
+        https://man7.org/linux/man-pages/man3/memset.3.html
+        memset(location, memory amount, chunk taken)
+        returns ptr;
+     */	
+    memset(&addr, 0, sizeof(addr));
+
 	/* Bind the socket to CAN interface */
 	addr.can_family = AF_CAN;
+    //@ assert interface_check >= 0 && socket_success_ctx(ctx) && (addr.can_family == AF_CAN);
 	addr.can_ifindex = ifr.ifr_ifindex;
-	if (bind(ctx->socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    //@ assert interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr);
+    int is_bind_sucessful =  bind(ctx->socket, (struct sockaddr *)&addr, sizeof(addr));
+    if (is_bind_sucessful < 0) {
+        //@ assert interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful < 0;
 		csp_print("%s[%s]: bind() failed, error: %s\n", __FUNCTION__, ctx->name, strerror(errno));
+        //@ assert \true && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful < 0;
 		socketcan_free(ctx);
+        //@ assert \true && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful < 0;
 		return CSP_ERR_INVAL;
 	}
-
+     //@ assert interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 	/* Set filter mode */
-	if (csp_can_socketcan_set_promisc(promisc, ctx) != CSP_ERR_NONE) {
+    int promisc_is_sucessful = csp_can_socketcan_set_promisc(promisc, ctx);
+	if (promisc_is_sucessful != CSP_ERR_NONE) {
+        //@ assert promisc_is_sucessful != CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 		csp_print("%s[%s]: csp_can_socketcan_set_promisc() failed, error: %s\n", __FUNCTION__, ctx->name, strerror(errno));
+        //@ assert \true && promisc_is_sucessful != CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 		return CSP_ERR_INVAL;
 	}
+     //@ assert promisc_is_sucessful == CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 
 	/* Add interface to CSP */
 	int res = csp_can_add_interface(&ctx->iface);
 	if (res != CSP_ERR_NONE) {
+        //@ assert res != CSP_ERR_NONE && promisc_is_sucessful == CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 		csp_print("%s[%s]: csp_can_add_interface() failed, error: %d\n", __FUNCTION__, ctx->name, res);
+        //@ assert \true && res != CSP_ERR_NONE && promisc_is_sucessful == CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 		socketcan_free(ctx);
+        //@ assert \true && res != CSP_ERR_NONE && promisc_is_sucessful == CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 		return res;
 	}
+    //@ assert res == CSP_ERR_NONE && promisc_is_sucessful == CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 
-	/* Create receive thread */
-	if (pthread_create(&ctx->rx_thread, NULL, socketcan_rx_thread, ctx) != 0) {
+	/* Create receive thread 
+        pthread_create(pthread struct, pthread attribute, void ptr start routine, arg)
+        https://man7.org/linux/man-pages/man3/pthread_create.3.html 
+        returns 0 on success and some error number on failure depending on fail
+
+    */
+    int pthread_successful = pthread_create(&ctx->rx_thread, NULL, socketcan_rx_thread, ctx);
+	if (pthread_create != 0) {
+        //@ assert pthread_successful != 0 && res == CSP_ERR_NONE && promisc_is_sucessful == CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 		csp_print("%s[%s]: pthread_create() failed, error: %s\n", __FUNCTION__, ctx->name, strerror(errno));
 		// socketcan_free(ctx); // we already added it to CSP (no way to remove it)
+         //@ assert \true && pthread_successful == 0 && res == CSP_ERR_NONE && promisc_is_sucessful == CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 		return CSP_ERR_NOMEM;
 	}
 
+    //@ assert pthread_successful == 0 && res == CSP_ERR_NONE && promisc_is_sucessful == CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 	if (return_iface) {
+
+        //@ assert return_iface == \null && pthread_successful == 0 && res == CSP_ERR_NONE && promisc_is_sucessful == CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 		*return_iface = &ctx->iface;
+        //@ assert *return_iface == (&ctx->iface) && pthread_successful == 0 && res == CSP_ERR_NONE && promisc_is_sucessful == CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 	}
 
+    //@ assert *return_iface == &ctx->iface || \valid(return_iface) && pthread_successful == 0 && res == CSP_ERR_NONE && promisc_is_sucessful == CSP_ERR_NONE && interface_check >= 0 && socket_success_ctx(ctx) && address_fully_set(addr, ifr) && is_bind_sucessful >= 0;
 	return CSP_ERR_NONE;
 }
 
@@ -440,18 +539,27 @@ int csp_can_socketcan_open_and_add_interface(const char * device, const char * i
  */
 
 /*@
+  lemma res_is_success_or_failure:
+    \forall int res; res == CSP_ERR_NONE || res != CSP_ERR_NONE;
+*/
+/*@
 	requires   \valid(device)
-			&& bitrate <= INT_MAX
-			&& bitrate >= INT_MIN
+			&& bitrate <= INT_MAX && bitrate <= INT_MIN
 			&& promisc == 1 || promisc == 0;
+
+    behavior success:
+        ensures \valid(\result);
+
+    behavior failure:
+        ensures \result == \null; 
 */
 
 csp_iface_t * csp_can_socketcan_init(const char * device, int bitrate, bool promisc) {
 	csp_iface_t * return_iface;
-	// assert valid_csp_iface_t_init(return_iface);
+    //@ assert true;
 	int res = csp_can_socketcan_open_and_add_interface(device,
 			CSP_IF_CAN_DEFAULT_NAME, bitrate, promisc, &return_iface);
-	//@ assert return_iface == NULL;
+	//@ assert return_iface == \null && res == CSP_ERR_NONE || res != CSP_ERR_NONE;
 	return (res == CSP_ERR_NONE) ? return_iface: NULL;
 }
 
