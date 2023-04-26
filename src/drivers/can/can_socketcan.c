@@ -130,50 +130,56 @@ static void * socketcan_rx_thread(void * arg) {
 							\valid((can_context_t *) driver_data);
 
 	predicate invalid_driver_data(void * driver_data) =
-								driver_data == \null
-								|| driver_data != ((can_context_t *) driver_data);
-
+								driver_data == \null;
 	predicate true_ctx(can_context_t * ctx) = \valid(ctx)
 											&& \valid(&(ctx->socket))
 											&& \valid(&(ctx-> name))
 											&& \valid(&(ctx-> rx_thread))
 											&& \valid(&(ctx-> iface))
 											&& \valid(&(ctx-> ifdata));
+
+    predicate valid_write_res(int write_res, struct can_frame frame) = 
+       write_res == sizeof(frame); 
+
+    predicate invalid_write_res(int write_res) = 
+       write_res == -1; 
+
 */
 /*@
-	requires driver_data_is_context(driver_data) && \valid((can_context_t *) driver_data);
+	requires driver_data == \null || driver_data == (can_context_t *) driver_data; 
  	requires \valid(data);
 	requires id > INT_MIN && id < INT_MAX;
 	requires dlc < 9;
 
 	behavior valid_frame:
-	assumes driver_data == ((can_context_t *) driver_data);
 	ensures \result == CSP_ERR_NONE;
 
 	behavior invalid_frame:
-	assumes invalid_driver_data(driver_data);
 	ensures \result == CSP_ERR_INVAL;
 
+    behavior cannot_write:
+    ensures \result == CSP_ERR_TX; 
+
+    disjoint behaviors;
+    complete behaviors;
 */
 static int csp_can_tx_frame(void * driver_data, uint32_t id, const uint8_t * data, uint8_t dlc) {
-	can_context_t * ctx;
-	// CUBESAT MEETING
-	// Asserting true because I give up on this...
-	//@ assert true;
+	//@ assert driver_data == \null || driver_data != \null;
+    can_context_t * ctx;
+    //@ assert driver_data == \null ==> ctx == \null;
+    //@ assert driver_data != \null <==> driver_data == (can_context_t *) driver_data;
 	if(driver_data != ((can_context_t *) driver_data) || dlc > 8)
-		//@ assert invalid_driver_data(driver_data) || dlc > 8;
+		//@ assert driver_data == \null || dlc > 8;
 		return CSP_ERR_INVAL;
-	else
-		ctx = ((can_context_t *) driver_data);
-		//@ assert invalid_driver_data(driver_data) ==> true_ctx(ctx);
-		//@ assert true_ctx(ctx);
-		//@ assert dlc < 9 && true_ctx(ctx);
+	ctx = ((can_context_t *) driver_data);
+    //@ assert ctx == (can_context_t *) driver_data && 0 < (ctx -> socket) <= 1024;
+	//@ assert dlc < 9 && \valid(ctx) && \valid((can_context_t *) driver_data);
 	struct can_frame frame = {.can_id = id | CAN_EFF_FLAG,
 							  .can_dlc = dlc};
 	//@ ghost uint32_t CAN_EFF_FLAG_G = UINT_MAX;
 	//@ ghost uint32_t id_g = frame.can_id | CAN_EFF_FLAG_G;
 	//@ ghost uint8_t dlc_g = frame.can_dlc;
-	//@ assert dlc < 9 && id_g == (id | CAN_EFF_FLAG_G) && dlc_g == dlc;
+	//@ assert dlc < 9 && id_g == (id | CAN_EFF_FLAG_G) && dlc_g == dlc && ctx == (can_context_t *) driver_data;
 
 	memcpy(frame.data, data, dlc);
 	//@ assert dlc < 9 && id_g == (id | CAN_EFF_FLAG_G) && dlc_g == dlc && true;
@@ -182,25 +188,29 @@ static int csp_can_tx_frame(void * driver_data, uint32_t id, const uint8_t * dat
 	uint32_t elapsed_ms = 0;
 	//@ assert dlc < 9 && id_g == (id | CAN_EFF_FLAG_G) && dlc_g == dlc && true && elapsed_ms == 0;
 
-	//@ loop variant elapsed_ms;
-	while (write(ctx->socket, &frame, sizeof(frame)) != sizeof(frame)) {
-
+    int write_res;
+/*@ 
+    loop invariant 0 <= elapsed_ms <= 1000;
+    loop invariant \forall int write_res; write_res == -1;
+    loop assigns elapsed_ms, errno;    
+ */
+	while ((write_res = write(ctx->socket, &frame, sizeof(frame))) != sizeof(frame)) {
+        //@ assert write_res != sizeof(frame);
 		if ((errno != ENOBUFS) || (elapsed_ms >= 1000)) {
-			//@ assert errno >= ENOBUFS || elapsed_ms >= 1000;
+			//@ assert errno != ENOBUFS || elapsed_ms >= 1000 && write_res != sizeof(frame);
 			csp_print("%s[%s]: write() failed, errno %d: %s\n", __FUNCTION__, ctx->name, errno, strerror(errno));
-			//@ assert errno >= ENOBUFS || elapsed_ms >= 1000 && true;
+			//@ assert errno != ENOBUFS || elapsed_ms >= 1000 && write_res != sizeof(frame);
 			return CSP_ERR_TX;
 		}
-
+        //@ assert errno == ENOBUFS && elapsed_ms < 1000 && write_res != sizeof(frame);
 		usleep(5000);
-		//@ assert true;
+        //@ assert \true && errno == ENOBUFS && elapsed_ms < 1000 && write_res != sizeof(frame);
 		elapsed_ms += 5;
-		//@ assert elapsed_ms == elapsed_ms + 5;
-
+        //@ assert elapsed_ms == elapsed_ms + 5 && errno == ENOBUFS && elapsed_ms < 1000 && write_res != sizeof(frame);
 	}
 
-	return CSP_ERR_NONE;
 	//@ assert dlc < 9 && id_g == (id | CAN_EFF_FLAG_G) && dlc_g == dlc;
+	return CSP_ERR_NONE;
 }
 
 
