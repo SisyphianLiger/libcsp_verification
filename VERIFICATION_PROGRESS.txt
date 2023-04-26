@@ -41,7 +41,7 @@ can_socketcan.c Functions and Leaves:
             (C-RTE)-> Uses csp_iflist_add               /src/csp_iflist.c
 
 
-(I)csp_can_tx_frame                                     /src/drivers/can/can_socketcan.c     
+(C-RTE)csp_can_tx_frame                                     /src/drivers/can/can_socketcan.c     
 
 (I)socketcan_rx_thread                                  /src/drivers/can/can_socketcan.c
 
