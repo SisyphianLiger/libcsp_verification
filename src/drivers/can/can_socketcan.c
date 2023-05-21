@@ -47,7 +47,7 @@ typedef struct {
 */
 
 /*@
-	requires valid_can_ctx(ctx) || invalid_can_ctx(ctx);
+	requires valid_can_ctx(ctx) || invalid_can_ctx(ctx) || invalid_socket(ctx); 
 
 	behavior valid_can_ctx:
 	ensures valid_can_ctx(ctx); 
