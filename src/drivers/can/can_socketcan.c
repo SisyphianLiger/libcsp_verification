@@ -26,47 +26,58 @@ typedef struct {
 } can_context_t;
 
 
-/*
- * Present for Group:
- *
- * Main Idea:
- * We want to make sure that ctx IS valid ptr i.e. not NULL
- * Then check if Socket is not 0 i.e. active
- * Then close the socket...
- * Then free the struct
- * and ensures
- *
- * NOTES: close and free are "atomic" in the sense that they are stdlib functions
- * therefore the I "assume" they work.
- * */
+
+
 
 /*@
 
-	 predicate valid_can_ctx(can_context_t * ctx) =
-		\valid(ctx)
-		&& \valid(&(ctx -> socket))
-		&& ctx -> socket >= 0 && ctx -> socket < 10000
-		&& (ctx -> socket >= 0);
+    predicate valid_can_ctx(can_context_t * ctx) =
+        \valid(ctx)
+        && \valid(&(ctx -> socket))
+        && ctx -> socket >= 0 && ctx -> socket < 10000
+        && (ctx -> socket >= 0);
 
+    predicate invalid_can_ctx(can_context_t * ctx) = \null;
+    
+    predicate invalid_socket(can_context_t * ctx) = 
+        \valid(ctx)
+        && \valid(&(ctx -> socket))
+        && ctx -> socket < 0     
+        && (ctx -> socket >= 0);
 */
 
 /*@
-	requires valid_can_ctx(ctx);
-	ensures *ctx == \old(*ctx);
+	requires valid_can_ctx(ctx) || invalid_can_ctx(ctx);
+
+	behavior valid_can_ctx:
+	ensures valid_can_ctx(ctx); 
+
+    behavior invalid_socket:
+    ensures invalid_socket(ctx);
+
+	behavior invalid_can_ctx:
+	ensures invalid_can_ctx(ctx); 
+
+    disjoint behaviors;
+    complete behaviors;
 */
 
 static void socketcan_free(can_context_t * ctx) {
-	//@ assert valid_can_ctx(ctx);
+	//@ assert valid_can_ctx(ctx) || invalid_can_ctx(ctx) || invalid_socket(ctx);
 	if (ctx) {
-		//@ assert ctx -> socket >= 0 && valid_can_ctx(ctx);
+		//@ assert valid_can_ctx(ctx);
 		if (ctx->socket >= 0) {
+		    //@ assert valid_can_ctx(ctx);
 			close(ctx->socket);
-			//@ assert true && valid_can_ctx(ctx);
+		    //@ assert valid_can_ctx(ctx);
  		}
+        //@ assert invalid_can_ctx(ctx);
 		free(ctx);
-		//@ assert \valid(ctx) && valid_can_ctx(ctx);
 	}
+    //@ assert invalid_can_ctx(ctx); 
 }
+
+
 
 static void * socketcan_rx_thread(void * arg) {
 	can_context_t * ctx = arg;
