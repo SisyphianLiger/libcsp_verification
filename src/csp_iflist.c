@@ -102,6 +102,7 @@ csp_iface_t * csp_iflist_get_by_index(int idx) {
 	return ifc;
 }
 
+
 /*
  * Quick note, interfaces == csp_iface_t
  *
@@ -113,13 +114,14 @@ csp_iface_t * csp_iflist_get_by_index(int idx) {
 
 /*@
   lemma ifc_is_valid:
-  \forall csp_iface_t * ifc; \valid(ifc);*/
+  \forall csp_iface_t * ifc; \valid(ifc);
+*/
+//assumes \valid(ifc) && \valid(&(ifc -> next));
 /*@
         requires interfaces == \null || interfaces == ifc;
         requires \valid(ifc); 
 
 		behavior valid_ifc:
-            assumes \valid(ifc) && \valid(&(ifc -> next));
 			ensures \result == CSP_ERR_NONE;
 
 		behavior invalid_ifc:
@@ -153,14 +155,15 @@ int csp_iflist_add(csp_iface_t * ifc) {
 				return CSP_ERR_ALREADY;
 
 			last = i;
-			//@ assert i != ifc && (ifc -> name) != (i -> name);
+			//@ assert i != ifc && (ifc -> name) != (i -> name) && last == i;
 		}
 		last->next = ifc;
 		//@ assert \valid(ifc) && (ifc -> next) == \null;
 	}
+    //@ assert \valid(ifc) && interfaces == ifc && (ifc -> next) == \null;
 	return CSP_ERR_NONE;
-	//@ assert \valid(ifc) && interfaces == ifc && (ifc -> next) == \null;
 }
+
 csp_iface_t * csp_iflist_get(void) {
 	return interfaces;
 }
