@@ -42,8 +42,7 @@ typedef struct {
     predicate invalid_socket(can_context_t * ctx) = 
         \valid(ctx)
         && \valid(&(ctx -> socket))
-        && ctx -> socket < 0     
-        && (ctx -> socket >= 0);
+        && ctx -> socket < 0;
 */
 
 /*@
@@ -63,7 +62,10 @@ typedef struct {
 */
 
 static void socketcan_free(can_context_t * ctx) {
-	//@ assert valid_can_ctx(ctx) || invalid_can_ctx(ctx) || invalid_socket(ctx);
+	/*@ assert valid_can_ctx(ctx)   
+            || invalid_can_ctx(ctx) 
+            || invalid_socket(ctx); 
+     */
 	if (ctx) {
 		//@ assert valid_can_ctx(ctx);
 		if (ctx->socket >= 0) {
@@ -71,7 +73,7 @@ static void socketcan_free(can_context_t * ctx) {
 			close(ctx->socket);
 		    //@ assert valid_can_ctx(ctx);
  		}
-        //@ assert invalid_can_ctx(ctx);
+        //@ assert invalid_socket(ctx);
 		free(ctx);
 	}
     //@ assert invalid_can_ctx(ctx); 
