@@ -180,6 +180,7 @@ static int csp_can_tx_frame(void * driver_data, uint32_t id, const uint8_t * dat
 	//@ assert driver_data == \null || driver_data != \null;
     can_context_t * ctx;
     //@ assert driver_data == \null ==> ctx == \null;
+    //@ assert driver_data != \null <==> driver_data == (can_context_t *) driver_data;
 	if(driver_data != ((can_context_t *) driver_data) || dlc > 8)
 		//@ assert driver_data == \null || dlc > 8;
 		return CSP_ERR_INVAL;

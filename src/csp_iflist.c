@@ -110,14 +110,20 @@ csp_iface_t * csp_iflist_get_by_index(int idx) {
 		predicate valid_ifc(csp_iface_t * ifc) = \valid(ifc);
 		predicate invalid_ifc(csp_iface_t * ifc) = ifc == \null;
 */
+
 /*@
-		requires valid_ifc(ifc);
-		requires invalid_ifc(ifc);
+  lemma ifc_is_valid:
+  \forall csp_iface_t * ifc; \valid(ifc);*/
+/*@
+        requires interfaces == \null || interfaces == ifc;
+        requires \valid(ifc); 
 
 		behavior valid_ifc:
+            assumes \valid(ifc) && \valid(&(ifc -> next));
 			ensures \result == CSP_ERR_NONE;
 
 		behavior invalid_ifc:
+            assumes interfaces == ifc;
 			ensures \result == CSP_ERR_ALREADY;
 */
 int csp_iflist_add(csp_iface_t * ifc) {
@@ -134,7 +140,7 @@ int csp_iflist_add(csp_iface_t * ifc) {
 	} else {
 		/* Insert interface last if not already in pool */
 		csp_iface_t * last = NULL;
-		//@ assert \valid(ifc) && (ifc -> next) == \null && last == \null;
+		//@ assert \valid(ifc) && interfaces != \null && (ifc -> next) == \null && last == \null;
 
 		/*@
 		  loop invariant i == interfaces && i != \null;
@@ -143,9 +149,8 @@ int csp_iflist_add(csp_iface_t * ifc) {
 		*/
 		for (csp_iface_t * i = interfaces; i != NULL; i = i->next) {
 			if ((i == ifc) || (strncmp(ifc->name, i->name, CSP_IFLIST_NAME_MAX) == 0))
-				//@ assert i == ifc || (ifc -> name) == (i -> name);
+				//@ assert i == ifc || (ifc -> name) == (i -> name) && i != \null;
 				return CSP_ERR_ALREADY;
-				//@ assert invalid_ifc(ifc);
 
 			last = i;
 			//@ assert i != ifc && (ifc -> name) != (i -> name);
@@ -156,7 +161,6 @@ int csp_iflist_add(csp_iface_t * ifc) {
 	return CSP_ERR_NONE;
 	//@ assert \valid(ifc) && interfaces == ifc && (ifc -> next) == \null;
 }
-
 csp_iface_t * csp_iflist_get(void) {
 	return interfaces;
 }
