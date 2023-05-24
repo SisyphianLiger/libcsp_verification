@@ -189,18 +189,14 @@ static int csp_can_tx_frame(void * driver_data, uint32_t id, const uint8_t * dat
 	//@ assert dlc < 9 && \valid(ctx) && \valid((can_context_t *) driver_data);
 	struct can_frame frame = {.can_id = id | CAN_EFF_FLAG,
 							  .can_dlc = dlc};
-	//@ ghost uint32_t CAN_EFF_FLAG_G = UINT_MAX;
-	//@ ghost uint32_t id_g = frame.can_id | CAN_EFF_FLAG_G;
-	//@ ghost uint8_t dlc_g = frame.can_dlc;
-	//@ assert dlc < 9 && id_g == (id | CAN_EFF_FLAG_G) && dlc_g == dlc && ctx == (can_context_t *) driver_data;
+	//@ assert dlc < 9 && frame.can_id == (id | CAN_EFF_FLAG) && frame.can_dlc == dlc && ctx == (can_context_t *) driver_data;
 
 	memcpy(frame.data, data, dlc);
-	//@ assert dlc < 9 && id_g == (id | CAN_EFF_FLAG_G) && dlc_g == dlc && true;
-
+	//@ assert dlc < 9 && frame.can_id == (id | CAN_EFF_FLAG) && frame.can_dlc == dlc && ctx == (can_context_t *) driver_data && true;
 
 	uint32_t elapsed_ms = 0;
-	//@ assert dlc < 9 && id_g == (id | CAN_EFF_FLAG_G) && dlc_g == dlc && true && elapsed_ms == 0;
-
+	//@ assert elapsed_ms == 0 && dlc < 9 && frame.can_id == (id | CAN_EFF_FLAG) && frame.can_dlc == dlc && ctx == (can_context_t *) driver_data && true;
+   
     int write_res;
 /*@ 
     loop invariant 0 <= elapsed_ms <= 1000;
@@ -221,8 +217,7 @@ static int csp_can_tx_frame(void * driver_data, uint32_t id, const uint8_t * dat
 		elapsed_ms += 5;
         //@ assert elapsed_ms == elapsed_ms + 5 && errno == ENOBUFS && elapsed_ms < 1000 && write_res != sizeof(frame);
 	}
-
-	//@ assert dlc < 9 && id_g == (id | CAN_EFF_FLAG_G) && dlc_g == dlc;
+	//@ assert dlc < 9 && frame.can_id == (id | CAN_EFF_FLAG) && frame.can_dlc == dlc && ctx == (can_context_t *) driver_data;
 	return CSP_ERR_NONE;
 }
 
@@ -467,7 +462,7 @@ int csp_can_socketcan_open_and_add_interface(const char * device, const char * i
        ioctl(file descriptor, requiests, arguments)
      */
     int interface_check = ioctl(ctx->socket, SIOCGIFINDEX, &ifr);
-	if (interface_check < 0) {
+	if (interface_check != 0) {
         //@ assert interface_check < 0 && socket_success_ctx(ctx);
 		csp_print("%s[%s]: device: [%s], ioctl() failed, error: %s\n", __FUNCTION__, ctx->name, device, strerror(errno));
         //@ assert interface_check < 0 && socket_success_ctx(ctx) && \true;
