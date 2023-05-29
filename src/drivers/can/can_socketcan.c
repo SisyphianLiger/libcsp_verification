@@ -158,9 +158,10 @@ static void * socketcan_rx_thread(void * arg) {
        write_res == -1; 
 
 */
+
+//requires \valid(data) || data == \null;
 /*@
 	requires driver_data == \null || driver_data == (can_context_t *) driver_data; 
- 	requires \valid(data);
 	requires id >= INT_MIN && id <= INT_MAX;
 	requires dlc < 9;
 
@@ -179,20 +180,22 @@ static void * socketcan_rx_thread(void * arg) {
 static int csp_can_tx_frame(void * driver_data, uint32_t id, const uint8_t * data, uint8_t dlc) {
 	//@ assert driver_data == \null || driver_data != \null;
     can_context_t * ctx;
-    //@ assert driver_data == \null ==> ctx == \null;
-    //@ assert driver_data != \null <==> driver_data == (can_context_t *) driver_data;
+	//@ assert driver_data == \null || driver_data != \null;
 	if(driver_data != ((can_context_t *) driver_data) || dlc > 8)
 		//@ assert driver_data == \null || dlc > 8;
-		return CSP_ERR_INVAL;
-	ctx = ((can_context_t *) driver_data);
-    //@ assert ctx == (can_context_t *) driver_data && 0 < (ctx -> socket) <= 1024;
-	//@ assert dlc < 9 && \valid(ctx) && \valid((can_context_t *) driver_data);
+        return CSP_ERR_INVAL;
+    ctx = ((can_context_t *) driver_data);
+    /*@ assert driver_data != \null && 
+              ctx == (can_context_t *) driver_data && 
+              dlc < 9 &&
+              0 < (ctx -> socket) <= 1024;
+     */
 	struct can_frame frame = {.can_id = id | CAN_EFF_FLAG,
 							  .can_dlc = dlc};
-	//@ assert dlc < 9 && frame.can_id == (id | CAN_EFF_FLAG) && frame.can_dlc == dlc && ctx == (can_context_t *) driver_data;
+	//@ assert ctx == (can_context_t *) driver_data && dlc < 9 && frame.can_id == (id | CAN_EFF_FLAG) && frame.can_dlc == dlc && ctx == (can_context_t *) driver_data;
 
 	memcpy(frame.data, data, dlc);
-	//@ assert dlc < 9 && frame.can_id == (id | CAN_EFF_FLAG) && frame.can_dlc == dlc && ctx == (can_context_t *) driver_data && true;
+	//@ assert true && dlc < 9 && frame.can_id == (id | CAN_EFF_FLAG) && frame.can_dlc == dlc && ctx == (can_context_t *) driver_data && true;
 
 	uint32_t elapsed_ms = 0;
 	//@ assert elapsed_ms == 0 && dlc < 9 && frame.can_id == (id | CAN_EFF_FLAG) && frame.can_dlc == dlc && ctx == (can_context_t *) driver_data && true;
