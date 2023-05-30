@@ -483,51 +483,53 @@ int csp_can2_tx(csp_iface_t * iface, uint16_t via, csp_packet_t * packet, int fr
 								&& \valid(&(iface -> interface_data));
 
 	predicate invalid_interface_no_name(csp_iface_t * iface) = \valid(iface)
-								&& &(iface -> name) == \null
+								&& (iface -> name) == \null
 								&& \valid(&(iface -> interface_data));
 
 	predicate invalid_interface_no_data(csp_iface_t * iface) = \valid(iface)
 								&& \valid(&(iface -> name))
-								&& &(iface -> interface_data) == \null;
+								&& (iface -> interface_data) == \null;
 
  */
-
+/*@
+    lemma csp_iflist_add_res_ERRNONE_or_ERRALREADY:
+        \forall int csp_iflist_add_res; csp_iflist_add_res == CSP_ERR_NONE; 
+*/
+// || csp_iflist_add_res == CSP_ERR_ALREADY;
 // predicate invalid_ifdata( csp_can_interface_data_t * ifdata ) = \valid(ifdata)
 // && \valid(&(iface -> interface_data))
 
 /*@
-		requires valid_interface(iface);
-		requires invalid_interface_no_name(iface);
- 		requires invalid_interface_no_data(iface);
+		requires iface == \null || \valid(iface);
 
 		behavior is_valid_interface:
-			assumes valid_interface(iface);
-			ensures \result == 0;
+			ensures \result;
 
-		behavior invalid_interface_no_name:
-			assumes invalid_interface_no_name(iface);
-			ensures \result != CSP_ERR_INVAL;
+		behavior invalid_interface_no_name_null_or_no_data_or_tx_func_null:
+            assumes iface == \null || iface -> name == \null || iface -> interface_data == \null;
+            ensures \result == CSP_ERR_INVAL;
 
-		behavior invalid_interface_no_data:
-			assumes invalid_interface_no_data(iface);
-			ensures \result != CSP_ERR_INVAL;
+        disjoint behaviors;
+        complete behaviors;
+
 
  */
 int csp_can_add_interface(csp_iface_t * iface) {
-	//@ assert true;
-	if ((iface == NULL) || (iface->name == NULL) || (iface->interface_data == NULL)) {
-		//@ assert invalid_interface_no_data(iface) || invalid_interface_no_name(iface) || (iface == \null);
+    //@ assert \valid(iface) || iface == \null;	
+    if ((iface == NULL) || (iface->name == NULL) || (iface->interface_data == NULL)) {
+		//@ assert invalid_interface_no_data(iface) || invalid_interface_no_name(iface) || iface == \null;
 		return CSP_ERR_INVAL;
 	}
-	//@ assert valid_interface(iface);
+	//@ assert \valid(iface);
 	csp_can_interface_data_t * ifdata = iface->interface_data;
 	// MAKE PREDICATE FOR INVALID DATA ifdata
-	//@ assert \valid(ifdata) && valid_interface(iface) || (ifdata == \null) ;
+    //
+	//@ assert \valid(ifdata) && \valid(iface) && \valid(&(iface -> interface_data)); 
 	if (ifdata->tx_func == NULL) {
-		//@ assert (ifdata == \null);
+		//@ assert \valid(ifdata) && (ifdata -> tx_func) == \null && \valid(iface);
 		return CSP_ERR_INVAL;
 	}
-	//@ assert \valid(ifdata) && valid_interface(iface);
+	//@ assert \valid(ifdata) && \valid(&(iface -> interface_data)) && \valid(iface);
 
 	/* We reserve 8 bytes of the data field, for CFP information:
 	 * In reality we dont use as much, its between 3 and 6 depending
@@ -536,29 +538,26 @@ int csp_can_add_interface(csp_iface_t * iface) {
 	// HELP
 	// mtu (maximum transfer unit) == uint16_t between 0 and 10?
 	iface->mtu = csp_buffer_data_size() - 8;
-	//@ assert \valid(ifdata) && valid_interface(iface) && (iface -> mtu) >= 0 && (iface -> mtu) < 10;
-
+	//@ assert \valid(ifdata) && \valid(&(iface -> interface_data)) && \valid(iface)&& (iface -> mtu) >= 0 && (iface -> mtu) < 10;
 	// uint32_t counter initialized to 0
 	ifdata->cfp_packet_counter = 0;
 	//@ assert \valid(ifdata) && valid_interface(iface) && (iface -> mtu) >= 0 && (iface -> mtu) < 10 && (ifdata->cfp_packet_counter) == 0;
 
+	//@ assert ifdata-> cfp_packet_counter == 0 && \valid(&(iface -> interface_data)) && \valid(iface)&& (iface -> mtu) >= 0 && (iface -> mtu) < 10;
 	if (csp_conf.version == 1) {
+	    //@ assert csp_conf.version == 1 && ifdata-> cfp_packet_counter == 0 && \valid(&(iface -> interface_data)) && \valid(iface)&& (iface -> mtu) >= 0 && (iface -> mtu) < 10;
 		iface->nexthop = csp_can1_tx;
-		//@ assert true;
+	    //@ assert csp_conf.version == 1 && iface -> nexthop == csp_can1_tx && ifdata-> cfp_packet_counter == 0 &&  \valid(&(iface -> interface_data)) && \valid(iface)&& (iface -> mtu) >= 0 && (iface -> mtu) < 10;
 	} else {
+	    //@ assert csp_conf.version != 1 && ifdata-> cfp_packet_counter == 0 && \valid(&(iface -> interface_data)) && \valid(iface)&& (iface -> mtu) >= 0 && (iface -> mtu) < 10;
 		iface->nexthop = csp_can2_tx;
-		//@ assert true;
+	    //@ assert iface -> nexthop == csp_can2_tx && csp_conf.version != 1 && ifdata-> cfp_packet_counter == 0 &&  \valid(&(iface -> interface_data)) && \valid(iface)&& (iface -> mtu) >= 0 && (iface -> mtu) < 10;
 	}
-
+	//@ assert ifdata-> cfp_packet_counter == 0 && \valid(&(iface -> interface_data)) && \valid(iface)&& (iface -> mtu) >= 0 && (iface -> mtu) < 10;
 	return csp_iflist_add(iface);
-	/*
-	 * csp_iflist_add has been verified: csp_if_can.c
-	 * line 109
-	 */
-	//@ assert \valid(iface) && true;
 }
 
-
+ // || csp_iflist_add_res == CSP_ERR_ALREADY 
 
 
 int csp_can_rx(csp_iface_t * iface, uint32_t id, const uint8_t * data, uint8_t dlc, int * task_woken) {

@@ -25,7 +25,6 @@ can_socketcan.c Functions and Leaves:
 
 (C-RTE)socketcan_free                                   /src/drivers/can/can_socketcan.c
 
-
 (C-RTE)csp_can_socketcan_stop                           /src/drivers/can/can_socketcan.c 
     |
     (C-RTE)-----> Uses socketcan_free                   /src/drivers/can/can_socketcan.c

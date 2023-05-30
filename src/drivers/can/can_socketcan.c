@@ -617,6 +617,12 @@ csp_iface_t * csp_can_socketcan_init(const char * device, int bitrate, bool prom
 														&& \valid(&(iface -> driver_data));
 */
 
+
+/*
+    lemma pthread_join_error:
+        \forall int error; error == 0 || setsockopt_res == -1;
+*/
+
 /*@
 	requires valid_csp_iface_t_stop(iface) && (iface == \null);
 
@@ -646,27 +652,26 @@ csp_iface_t * csp_can_socketcan_init(const char * device, int bitrate, bool prom
 
 int csp_can_socketcan_stop(csp_iface_t * iface) {
 	can_context_t * ctx = iface->driver_data;
-	//@ assert valid_csp_iface_t_stop(iface) && \valid(ctx);
+	//@ assert valid_csp_iface_t_stop(iface) && \valid(ctx) && \valid(&(iface -> driver_data));
 	int error = pthread_cancel(ctx->rx_thread);
-	//@ assert error != 0 || error == 0 && valid_csp_iface_t_stop(iface) && \valid(ctx);
+	//@ assert error != 0 || error == 0 && valid_csp_iface_t_stop(iface) && \valid(ctx) && \valid(&(iface -> driver_data));
 	if (error != 0) {
-		//@ assert error != 0 && valid_csp_iface_t_stop(iface) && \valid(ctx);
+		//@ assert error != 0 && valid_csp_iface_t_stop(iface) && \valid(ctx) && \valid(&(iface -> driver_data));
 		csp_print("%s[%s]: pthread_cancel() failed, error: %s\n", __FUNCTION__, ctx->name, strerror(errno));
-		//@ assert true;
+		//@ assert true && error != 0 && valid_csp_iface_t_stop(iface) && \valid(ctx) && \valid(&(iface -> driver_data));
 		return CSP_ERR_DRIVER;
 	}
-	//@ assert error == 0 && valid_csp_iface_t_stop(iface) && \valid(ctx);
+	//@ assert error == 0 && valid_csp_iface_t_stop(iface) && \valid(ctx) && \valid(&(iface -> driver_data));
 	error = pthread_join(ctx->rx_thread, NULL);
-
+	//@ assert error == 0 || error != 0 && valid_csp_iface_t_stop(iface) && \valid(ctx) && \valid(&(iface -> driver_data));
 	if (error != 0) {
-		//@ assert error != 0 && valid_csp_iface_t_stop(iface) && \valid(ctx);
+		//@ assert error != 0 && valid_csp_iface_t_stop(iface) && \valid(ctx) && \valid(&(iface -> driver_data));
 		csp_print("%s[%s]: pthread_join() failed, error: %s\n", __FUNCTION__, ctx->name, strerror(errno));
-		//@ assert true;
+		//@ assert true && error != 0 && valid_csp_iface_t_stop(iface) && \valid(ctx) && \valid(&(iface -> driver_data));
 		return CSP_ERR_DRIVER;
 	}
-	//@ assert error == 0 && valid_csp_iface_t_stop(iface) && \valid(ctx);
-
+	//@ assert error == 0 && valid_csp_iface_t_stop(iface) && \valid(ctx) && \valid(&(iface -> driver_data));
 	socketcan_free(ctx);
-	//@ assert \valid(ctx) && valid_csp_iface_t_stop(iface);
+	// assert \valid(ctx) && valid_csp_iface_t_stop(iface); 
 	return CSP_ERR_NONE;
 }
