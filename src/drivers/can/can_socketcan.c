@@ -67,11 +67,10 @@ static void socketcan_free(can_context_t * ctx) {
             || invalid_socket(ctx); 
      */
 	if (ctx) {
-		//@ assert valid_can_ctx(ctx);
+		//@ assert valid_can_ctx(ctx) || invalid_socket(ctx);
 		if (ctx->socket >= 0) {
 		    //@ assert valid_can_ctx(ctx);
 			close(ctx->socket);
-		    //@ assert valid_can_ctx(ctx);
  		}
         //@ assert invalid_socket(ctx);
 		free(ctx);
@@ -163,13 +162,13 @@ static void * socketcan_rx_thread(void * arg) {
 /*@
 	requires driver_data == \null || driver_data == (can_context_t *) driver_data; 
 	requires id >= INT_MIN && id <= INT_MAX;
-	requires dlc < 9;
+    requires dlc < 9;
 
 	behavior valid_frame:
 	ensures \result == CSP_ERR_NONE;
 
 	behavior invalid_frame:
-	ensures \result == CSP_ERR_INVAL;
+    ensures \result == CSP_ERR_INVAL;
 
     behavior cannot_write:
     ensures \result == CSP_ERR_TX; 
@@ -178,17 +177,17 @@ static void * socketcan_rx_thread(void * arg) {
     complete behaviors;
 */
 static int csp_can_tx_frame(void * driver_data, uint32_t id, const uint8_t * data, uint8_t dlc) {
-	//@ assert driver_data == \null || driver_data != \null;
     can_context_t * ctx;
 	//@ assert driver_data == \null || driver_data != \null;
-	if(driver_data != ((can_context_t *) driver_data) || dlc > 8)
-		//@ assert driver_data == \null || dlc > 8;
+	if( dlc > 8 || driver_data != ((can_context_t *) driver_data))
+		//@ assert dlc > 8 || driver_data == \null;
         return CSP_ERR_INVAL;
+
     ctx = ((can_context_t *) driver_data);
     /*@ assert driver_data != \null && 
               ctx == (can_context_t *) driver_data && 
               dlc < 9 &&
-              0 < (ctx -> socket) <= 1024;
+              0 < (ctx -> socket) <= 1024;    
      */
 	struct can_frame frame = {.can_id = id | CAN_EFF_FLAG,
 							  .can_dlc = dlc};
@@ -246,13 +245,18 @@ static int csp_can_tx_frame(void * driver_data, uint32_t id, const uint8_t * dat
 													&& \valid(&(ctx -> iface.addr))
 													&& ((ctx -> socket) >= 0);
 
+        predicate invalid_socket_ctx(can_context_t *ctx) = \valid(ctx) &&
+                                                       \valid(&(ctx -> socket)) && 
+                                                       ((ctx -> socket) < 0);
+
+        predicate null_context(can_context_t * ctx) = ctx == \null;
 */
 /*@
     lemma setsockopt_result_success0_or_failure_neg1:
         \forall int setsockopt_res; setsockopt_res == 0 || setsockopt_res == -1;
 */
 /*@
-	requires valid_context(ctx);
+	requires valid_context(ctx)|| invalid_socket_ctx(ctx); 
 	requires promisc == \true || promisc == \false; 
 
 	behavior invalid_ctx:
@@ -277,18 +281,18 @@ int csp_can_socketcan_set_promisc(const bool promisc, can_context_t * ctx) {
 	};
 	//@ assert valid_context(ctx) && \valid(&filter);
 	if (ctx->socket == 0) {
-	//@ assert (ctx -> socket) == 0 && valid_context(ctx) && \valid(&filter);
+	    //@ assert invalid_socket_ctx(ctx)  && \valid(&filter);
 		return CSP_ERR_INVAL;
 	}
 	//@ assert promisc == \true || promisc == \false && valid_context(ctx);
 	if (!promisc) {
-		//@ assert promisc == \false;
+		//@ assert promisc == \false && valid_context(ctx);
 		if (csp_conf.version == 1) {
-			//@ assert promisc == \false && csp_conf.version == 1;
+			//@ assert promisc == \false && csp_conf.version == 1 && valid_context(ctx);
 			filter.can_id = CFP_MAKE_DST(ctx->iface.addr);
 			filter.can_mask = CFP_MAKE_DST((1 << CFP_HOST_SIZE) - 1);
 		} else {
-			//@ assert promisc == \false && csp_conf.version != 1;
+			//@ assert promisc == \false && csp_conf.version != 1 && valid_context(ctx);
 			filter.can_id = ctx->iface.addr << CFP2_DST_OFFSET;
 			filter.can_mask = CFP2_DST_MASK << CFP2_DST_OFFSET;
 		}
@@ -303,7 +307,7 @@ int csp_can_socketcan_set_promisc(const bool promisc, can_context_t * ctx) {
 		return CSP_ERR_INVAL;
 	}
 
-	//@ assert promisc == \true && valid_context(ctx) && setsockopt_res == 0;
+	//@ assert valid_context(ctx) && promisc == \true && valid_context(ctx) && setsockopt_res == 0;
 	return CSP_ERR_NONE;
 }
 
