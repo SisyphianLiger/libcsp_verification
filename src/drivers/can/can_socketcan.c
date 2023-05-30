@@ -568,9 +568,9 @@ int csp_can_socketcan_open_and_add_interface(const char * device, const char * i
     \forall int res; res == CSP_ERR_NONE || res != CSP_ERR_NONE;
 */
 /*@
-	requires   \valid(device)
-			&& bitrate <= INT_MAX && bitrate <= INT_MIN
-			&& promisc == 1 || promisc == 0;
+	requires \valid(device);
+    requires bitrate <= INT_MAX && bitrate <= INT_MIN;
+    requires promisc == 1 || promisc == 0;
 
     behavior success:
         ensures \valid(\result);
@@ -584,8 +584,13 @@ csp_iface_t * csp_can_socketcan_init(const char * device, int bitrate, bool prom
     //@ assert true;
 	int res = csp_can_socketcan_open_and_add_interface(device,
 			CSP_IF_CAN_DEFAULT_NAME, bitrate, promisc, &return_iface);
-	//@ assert return_iface == \null && res == CSP_ERR_NONE || res != CSP_ERR_NONE;
-	return (res == CSP_ERR_NONE) ? return_iface: NULL;
+	//@ assert res == CSP_ERR_NONE ==> return_iface != \null || res != CSP_ERR_NONE ==> return_iface == \null;
+    if (CSP_ERR_NONE == res)
+	    //@ assert \valid(return_iface);
+        return return_iface;
+    else 
+	    //@ assert return_iface == \null;
+        return NULL;
 }
 
 /*
