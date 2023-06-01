@@ -178,7 +178,7 @@ static void * socketcan_rx_thread(void * arg) {
 */
 static int csp_can_tx_frame(void * driver_data, uint32_t id, const uint8_t * data, uint8_t dlc) {
     can_context_t * ctx;
-	//@ assert driver_data == \null || driver_data != \null;
+	//@ assert dlc < 9 && driver_data == \null || driver_data != \null && ctx == (can_context_t *) driver_data;
 	if( dlc > 8 || driver_data != ((can_context_t *) driver_data))
 		//@ assert dlc > 8 || driver_data == \null;
         return CSP_ERR_INVAL;
@@ -419,26 +419,14 @@ int csp_can_socketcan_open_and_add_interface(const char * device, const char * i
 		return CSP_ERR_NOMEM;
 	}
     
-    //@ assert bitrate <= 0 && \valid(ctx);
-	ctx->socket = -1;
-    //@ assert bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1;
-    /*
-     for reference: https://linux.die.net/man/3/strncpy
-        parameters(destination, source, size);
-        result 
-     */
+    //@ assert bitrate <= 0 && valid_instantiated_ctx(ctx, ifname, bitrate);	
+    ctx->socket = -1;
 	strncpy(ctx->name, ifname, sizeof(ctx->name) - 1);
-    //@ assert bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1 && (ctx -> name) == ifname;
 	ctx->iface.name = ctx->name;
-    //@ assert bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1 && (ctx -> name) == ifname && (ctx->iface.name == ctx->name);
 	ctx->iface.interface_data = &ctx->ifdata;
-    //@ assert (ctx -> iface.interface_data == &ctx -> ifdata) && bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1 && (ctx -> name) == ifname && (ctx->iface.name == ctx->name);
 	ctx->iface.driver_data = ctx;
-    //@ assert (ctx -> iface.driver_data == ctx) && (ctx -> iface.interface_data == &ctx -> ifdata) && bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1 && (ctx -> name) == ifname && (ctx->iface.name == ctx->name);
 	ctx->ifdata.tx_func = csp_can_tx_frame;
-    //@ assert (ctx -> ifdata.tx_func == csp_can_tx_frame) && (ctx -> iface.driver_data == ctx) && (ctx -> iface.interface_data == &ctx -> ifdata) && bitrate <= 0 && \valid(ctx) && (ctx -> socket) == -1 && (ctx -> name) == ifname && (ctx->iface.name == ctx->name);
 	ctx->ifdata.pbufs = NULL;
-    //@ assert valid_instantiated_ctx(ctx, ifname, bitrate);
 	/* Create socket 
         https://man7.org/linux/man-pages/man2/socket.2.html 
         socket(domain, type, protocol);
