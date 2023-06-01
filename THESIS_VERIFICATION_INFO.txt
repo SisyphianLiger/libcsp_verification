@@ -1,0 +1,77 @@
+THIS IS FOR THESIS VIEWERS ONLY:
+
+
+
+This section details the locations of the functions I have proven using Frama-C.
+Below is a explanation to the status of proof, the function name of the proof, 
+and the file path the proof is found in.
+
+
+Excerpt Code Proofs:
+
+<Function>                                              <File_Path>
+socketcan_free                                   /src/drivers/can/can_socketcan.c
+csp_can_socketcan_set_promisc                    /src/drivers/can/can_socketcan.c
+csp_can_socketcan_open_and_add_interface         /src/drivers/can/can_socketcan.c
+csp_can_tx_frame                                 /src/drivers/can/can_socketcan.c     
+csp_iflist_add                                   /src/csp_iflist.c
+
+
+
+Proof Status Flag:
+(C-RTE) --> Frama-C approved && -wp-rte
+(C)     --> Frama-C approved
+(I)     --> Incomplete proof
+
+
+
+Proofs:
+<Function>                                              <File_Path>
+
+
+(C-RTE)socketcan_free                                   /src/drivers/can/can_socketcan.c
+
+(C-RTE)csp_can_socketcan_stop                           /src/drivers/can/can_socketcan.c 
+    |
+    (C-RTE)-----> Uses socketcan_free                   /src/drivers/can/can_socketcan.c
+
+(C-RTE)csp_can_socketcan_init                           /src/drivers/can/can_socketcan.c
+    |
+(C-RTE)csp_can_socketcan_open_and_add_interface         /src/drivers/can/can_socketcan.c
+    |
+    (C-RTE)-> Uses socketcan_free                       /src/drivers/can/can_socketcan.c
+    (C-RTE)-> Uses csp_can_socketcan_set_promisc        /src/drivers/can/can_socketcan.c
+    (C-RTE)-> Uses csp_can_add_interface                /src/interfaces/csp_if_can.c
+            |
+            (C-RTE)-> Uses csp_iflist_add               /src/csp_iflist.c
+
+
+(C-RTE)csp_can_tx_frame                                 /src/drivers/can/can_socketcan.c     
+
+(I)socketcan_rx_thread                                  /src/drivers/can/can_socketcan.c
+
+usart.c Functions and Leaves:
+(I)csp_usart_write                                      /src/drivers/usart/usart_linux.c
+
+
+
+SET UP INSTRUCTIONS:
+
+Steps to Run:
+Running Frama-C: Must use Linux and make sure Ocaml is installed
+
+Also be sure to make libcsp for a specific header file that is not created
+until then.
+
+An example of a GUI command to run the code:
+
+frama-c-gui <File_Path> -main <function_name> -cpp-extra-args="-I ./<include_file_in_libcsp>
+-I ../../../../../../usr/include/" -c11
+
+
+Next Driver Functions for Formally Verify:
+Non can_socketcan.c/usart.c Functions:
+<Function>                                              <File_Path>:
+(I)csp_sfp_header_add                                   /src/csp_sfp.c  
+(C)csp_bridge_set_interfaces                            /src/csp_bridge.c
+(I)csp_can_pbuf_find                                    /src/interfaces/csp_if_can_pbuf.c               
