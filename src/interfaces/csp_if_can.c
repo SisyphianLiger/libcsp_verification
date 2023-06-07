@@ -43,50 +43,91 @@ enum cfp_frame_t {
 	CFP_MORE = 1
 };
 
+
+
+/*@
+    lemma cfp_frame_t_options: 
+        \forall enum cfp_frame_t CFP_RES; CFP_RES == CFP_BEGIN   || CFP_RES == CFP_MORE; 
+*/
+
+/*@
+        requires \valid(iface) || iface == \null; 
+              
+
+        behavior Begin_Or_More_Happy_Path: 
+        ensures \result == CSP_ERR_NONE;
+        
+        behavior CPF_Begins_packet_cycle:
+        assumes iface == \null;
+        ensures \result == CSP_ERR_NOMEM;
+
+        behavior CPF_Begins_packet_not_null:
+        assumes iface == \null && iface->frame == iface -> frame + 1;
+        ensures \result == CSP_ERR_INVAL;
+*/
 int csp_can1_rx(csp_iface_t * iface, uint32_t id, const uint8_t * data, uint8_t dlc, int * task_woken) {
 
-	/* Test: random packet loss */
-	// if (0) {
-	// 	int random = rand();
-	// 	if (random < RAND_MAX * 0.00005) {
-	// 		return CSP_ERR_DRIVER;
-	// 	}
-	// }
-
 	csp_can_interface_data_t * ifdata = iface->interface_data;
-
 	/* Bind incoming frame to a packet buffer */
+    //@ assert ifdata != \null ==> \valid(iface);
+    /*
+        Found in csp_if_can_pbuf.c
+    */
 	csp_packet_t * packet = csp_can_pbuf_find(ifdata, id, CFP_ID_CONN_MASK, task_woken);
+    //@ assert \valid(iface) ==> \valid(packet) || packet == \null;
 	if (packet == NULL) {
+        //@ assert iface == \null && packet == \null;
 		if (CFP_TYPE(id) == CFP_BEGIN) {
+            //@ assert CFP_TYPE(id) == CFP_BEGIN && iface == \null && packet == \null;
+            /*
+                Found in csp_if_can_pbuf.c
+            */
 			packet = csp_can_pbuf_new(ifdata, id, task_woken);
+            //@ assert CFP_TYPE(id) == CFP_BEGIN && iface == \null && \valid(packet) || packet == \null;
 			if (packet == NULL) {
-				iface->rx_error++;
+                //@ assert CFP_TYPE(id) == CFP_BEGIN && iface == \null && packet == \null;
+ 				iface->rx_error++;
+                //@ assert CFP_TYPE(id) == CFP_BEGIN && iface == \null && packet == \null && iface -> rx_error == iface -> rx_error + 1;
 				return CSP_ERR_NOMEM;
 			}
 		} else {
 			iface->frame++;
+            //@ assert CFP_TYPE(id) == CFP_MORE && iface == \null && iface->frame == iface -> frame + 1;
 			return CSP_ERR_INVAL;
 		}
 	}
-
+    //@ assert \valid(packet) && \valid(iface);
 	/* Reset frame data offset */
 	uint8_t offset = 0;
-
+    //@ assert \valid(packet) && \valid(iface) && offset == 0;
+    int CFP_RES = CFP_TYPE(id);
+    //@ assert \valid(packet) && \valid(iface) && offset == 0 && CFP_RES == CFP_BEGIN ||  CFP_RES == CFP_MORE; 
 	switch (CFP_TYPE(id)) {
 
 		case CFP_BEGIN:
-
+            //@ assert CFP_RES == CFP_BEGIN; 
 			/* Discard packet if DLC is less than CSP id + CSP length fields */
 			if (dlc < (sizeof(uint32_t) + sizeof(uint16_t))) {
+            //@ ghost int csp_id_and_length = sizeof(uint32_t) + sizeof(uint16_t);
+            //@ assert CFP_RES == CFP_BEGIN && dlc < csp_id_and_length;
 				csp_dbg_can_errno = CSP_DBG_CAN_ERR_SHORT_BEGIN;
+                //@ assert csp_dbg_can_errno == CSP_DBG_CAN_ERR_SHORT_BEGIN && CFP_RES == CFP_BEGIN && dlc < csp_id_and_length;
 				iface->frame++;
+                //@ assert iface -> frame == iface -> frame + 1 && csp_dbg_can_errno ==  CSP_DBG_CAN_ERR_SHORT_BEGIN && CFP_RES == CFP_BEGIN && dlc <  csp_id_and_length;
+                /*
+                    Found in csp_if_can_pbuf.c
+                */
 				csp_can_pbuf_free(ifdata, packet, 1, task_woken);
-				break;
+                //@ assert \true && iface -> frame == iface -> frame + 1 && csp_dbg_can_errno ==  CSP_DBG_CAN_ERR_SHORT_BEGIN && CFP_RES == CFP_BEGIN && dlc < csp_id_and_length;
+                break;
 			}
 
 			iface->frame++;
 
+            /*
+                Found in csp_id.c
+            */
+            //@ assert CFP_RES == CFP_BEGIN && iface -> frame == iface -> frame + 1;
 			csp_id1_setup_rx(packet);
 
 			/* Copy CSP identifier (header) */
@@ -118,7 +159,7 @@ int csp_can1_rx(csp_iface_t * iface, uint32_t id, const uint8_t * data, uint8_t 
 			/* FALLTHROUGH */
 
 		case CFP_MORE:
-
+            //@ assert CFP_RES == CFP_MORE;
 			/* Check 'remain' field match */
 			if ((uint16_t) CFP_REMAIN(id) != packet->remain - 1) {
 				csp_dbg_can_errno = CSP_DBG_CAN_ERR_FRAME_LOST;
@@ -557,13 +598,29 @@ int csp_can_add_interface(csp_iface_t * iface) {
 	return csp_iflist_add(iface);
 }
 
- // || csp_iflist_add_res == CSP_ERR_ALREADY 
 
+/*@ 
+        requires \valid(iface) || iface == \null;
+        requires id >= INT_MIN && id <= INT_MAX;
+        requires \valid(data) || data == \null;
+        requires dlc >= INT_MIN && dlc <= INT_MAX;
+        requires \valid(task_woken) || task_woken == \null;
+        
+        behavior Begin_Or_More_Happy_Pathfinal: 
+        ensures \result == CSP_ERR_NONE;
+        
+        behavior CPF_Begins_packet_cyclefinal:
+        ensures \result != CSP_ERR_NONE;
+
+*/
 
 int csp_can_rx(csp_iface_t * iface, uint32_t id, const uint8_t * data, uint8_t dlc, int * task_woken) {
-	if (csp_conf.version == 1) {
+	
+    if (csp_conf.version == 1) {
+        //@ assert csp_conf.version == 1;
 		return csp_can1_rx(iface, id, data, dlc, task_woken);
 	} else {
+        //@ assert csp_conf.version != 1;
 		return csp_can2_rx(iface, id, data, dlc, task_woken);
 	}
 }
