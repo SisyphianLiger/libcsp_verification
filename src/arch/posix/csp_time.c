@@ -17,8 +17,10 @@ uint32_t csp_get_ms(void) {
     //@ assert clock_res == 0 || clock_res == 1 && \valid(&(ts));
 	if (0 == clock_res) {
         int result = (uint32_t)((ts.tv_sec * 1000) + (ts.tv_nsec / 1000000));
-        //@ assert clock_res == 0 && \valid(&(ts)) && result > 0 && result <= INT_MAX;
+        //@ assert clock_res == 0 && \valid(&(ts)) && result > 0 && result <= INT_MAX && ts.tv_sec != 0;
 		return result; 
+        //@ assert clock_res == 0 && \valid(&(ts)) && result > 0 && result <= INT_MAX && ts.tv_sec != 0;
+        
 	}
     //@ assert clock_res == 1 && \valid(&(ts));
 	return 0;

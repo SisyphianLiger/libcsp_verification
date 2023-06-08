@@ -152,6 +152,8 @@ void csp_can_pbuf_cleanup(csp_can_interface_data_t * ifdata) {
         predicate valid_packet(csp_packet_t * packet, csp_can_interface_data_t * ifdata) = \valid(packet) &&
                                                         packet == ifdata -> pbufs;
 
+        predicate valid_ifdata(csp_can_interface_data_t * ifdata) = \valid(ifdata) && \valid(&(ifdata -> pbufs));
+        
 */ 
 
 /*@
@@ -170,14 +172,10 @@ void csp_can_pbuf_cleanup(csp_can_interface_data_t * ifdata) {
 
 /*@
 
-        requires \valid(ifdata) && \valid(&(ifdata -> pbufs));
-        requires id >= INT_MIN && id <= INT_MAX;
-        requires mask >= INT_MIN && mask <= INT_MAX;
-        requires \valid(task_woken) || task_woken == \null;
+        requires valid_ifdata(ifdata);
         assigns \nothing;
         
 	    behavior found_packet:
-        assumes \valid(ifdata) && \valid(&(ifdata -> pbufs));
 	    ensures (\exists csp_packet_t * packet; \valid(packet) && packet == \result);
 
 	    behavior packe_not_found:
@@ -186,7 +184,7 @@ void csp_can_pbuf_cleanup(csp_can_interface_data_t * ifdata) {
  
 */
 csp_packet_t * csp_can_pbuf_find(csp_can_interface_data_t * ifdata, uint32_t id, uint32_t mask, int * task_woken) {
-    //@  assert \valid(ifdata) && \valid(&(ifdata -> pbufs));
+    //@  assert valid_ifdata(ifdata);
     csp_packet_t * packet = ifdata->pbufs;
     //@ assert \valid(packet) && packet == ifdata -> pbufs || packet == \null;
     /*@
