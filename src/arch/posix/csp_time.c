@@ -6,6 +6,8 @@
 #include <sys/time.h>
 #include <limits.h>
 
+#define RESET_CLOCK 0
+
 /*@ 
         lemma clock_gettime_res:
             \forall int clock_res; clock_res == 0 || clock_res == -1;
@@ -16,11 +18,9 @@
         behavior clock_returns_valid_time:
         ensures \result <= INT_MAX && \result >= 0;
 
-        behavior clock_gettime_fails:
-        ensures \result == 0;
+        behavior clock_gettime_fails_or_overflows:
+        ensures \result == RESET_CLOCK;
 
-        behavior clock_gettime_overflows:
-        ensures \result == EINVAL;
  */
 uint32_t csp_get_ms(void) {
     struct timespec ts;
@@ -32,15 +32,16 @@ uint32_t csp_get_ms(void) {
         long result = ((ts.tv_sec * 1000) + (ts.tv_nsec / 1000000));   
         /*@ assert result <= INT_MAX && result >= 0 || 
                    result < INT_MAX && result > 0 && 
-                   clock_res == 0  && \valid(&(ts)); */
+                   clock_res == 0  && 
+                   \valid(&(ts)); */
         if ( result < 0 || result > INT_MAX)
             //@ assert result > INT_MAX || result < 0 && clock_res == 0 && \valid(&(ts));
-            return EINVAL;
+            return RESET_CLOCK;
         //@ assert result < INT_MAX && result > 0 && clock_res == 0 && \valid(&(ts)); 
 		return (uint32_t) result;         	
     }
     //@ assert clock_res == -1 && \valid(&(ts)); 
-	return 0;
+	return RESET_CLOCK;
 }
 
 /*@
