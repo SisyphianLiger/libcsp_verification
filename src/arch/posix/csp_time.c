@@ -30,7 +30,9 @@ uint32_t csp_get_ms(void) {
 	if (0 == clock_res) {
         //@ assert clock_res == 0 && \valid(&(ts));
         long result = ((ts.tv_sec * 1000) + (ts.tv_nsec / 1000000));   
-        //@ assert result <= INT_MAX && result >= 0 || result < INT_MAX && result > 0 && clock_res == 0 || clock_res == 1 && \valid(&(ts));
+        /*@ assert result <= INT_MAX && result >= 0 || 
+                   result < INT_MAX && result > 0 && 
+                   clock_res == 0  && \valid(&(ts)); */
         if ( result < 0 || result > INT_MAX)
             //@ assert result > INT_MAX || result < 0 && clock_res == 0 && \valid(&(ts));
             return EINVAL;
