@@ -162,29 +162,18 @@ void csp_can_pbuf_cleanup(csp_can_interface_data_t * ifdata) {
 */
 
 /*@
-    lemma valid_id:
-        \forall uint32_t id; id >= INT_MIN && id <= INT_MAX;
-*/
-/*@
-    lemma valid_mask:
-        \forall uint32_t mask; mask >= INT_MIN && mask <= INT_MAX;
-*/
-
-/*@
-
-        requires valid_ifdata(ifdata);
+        requires valid_ifdata(ifdata) ;
         assigns \nothing;
         
 	    behavior found_packet:
 	    ensures (\exists csp_packet_t * packet; \valid(packet) && packet == \result);
 
-	    behavior packe_not_found:
-        assumes ifdata -> pbufs == \null;
-        ensures \result == \null;
- 
+	    behavior packet_not_found:
+        ensures \result == \null; 
 */
+
 csp_packet_t * csp_can_pbuf_find(csp_can_interface_data_t * ifdata, uint32_t id, uint32_t mask, int * task_woken) {
-    //@  assert valid_ifdata(ifdata);
+    //@ assert valid_ifdata(ifdata);
     csp_packet_t * packet = ifdata->pbufs;
     //@ assert \valid(packet) && packet == ifdata -> pbufs || packet == \null;
     /*@
