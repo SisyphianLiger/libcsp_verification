@@ -1,28 +1,43 @@
 
 
 #include <csp/arch/csp_time.h>
-
+#include <errno.h>
 #include <time.h>
 #include <sys/time.h>
 #include <limits.h>
 
+/*@ 
+        lemma clock_gettime_res:
+            \forall int clock_res; clock_res == 0 || clock_res == -1;
+*/
 /*@
         requires \true;
-        ensures \result > 0 || \result == 0;  
+
+        behavior clock_returns_valid_time:
+        ensures \result <= INT_MAX && \result >= 0;
+
+        behavior clock_gettime_fails:
+        ensures \result == 0;
+
+        behavior clock_gettime_overflows:
+        ensures \result == EINVAL;
  */
 uint32_t csp_get_ms(void) {
     struct timespec ts;
     //@ assert \valid(&(ts));
     int clock_res = clock_gettime(CLOCK_MONOTONIC, &ts) == 0;
-    //@ assert clock_res == 0 || clock_res == 1 && \valid(&(ts));
+    //@ assert clock_res == 0 || clock_res == -1 && \valid(&(ts));
 	if (0 == clock_res) {
-        int result = (uint32_t)((ts.tv_sec * 1000) + (ts.tv_nsec / 1000000));
-        //@ assert clock_res == 0 && \valid(&(ts)) && result > 0 && result <= INT_MAX && ts.tv_sec != 0;
-		return result; 
-        //@ assert clock_res == 0 && \valid(&(ts)) && result > 0 && result <= INT_MAX && ts.tv_sec != 0;
-        
-	}
-    //@ assert clock_res == 1 && \valid(&(ts));
+        //@ assert clock_res == 0 && \valid(&(ts));
+        long result = ((ts.tv_sec * 1000) + (ts.tv_nsec / 1000000));   
+        //@ assert result <= INT_MAX && result >= 0 || result < INT_MAX && result > 0 && clock_res == 0 || clock_res == 1 && \valid(&(ts));
+        if ( result < 0 || result > INT_MAX)
+            //@ assert result > INT_MAX || result < 0 && clock_res == 0 && \valid(&(ts));
+            return EINVAL;
+        //@ assert result < INT_MAX && result > 0 && clock_res == 0 && \valid(&(ts)); 
+		return (uint32_t) result;         	
+    }
+    //@ assert clock_res == -1 && \valid(&(ts)); 
 	return 0;
 }
 
