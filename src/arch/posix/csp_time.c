@@ -21,6 +21,9 @@
         behavior clock_gettime_fails_or_overflows:
         ensures \result == RESET_CLOCK;
 
+        disjoint behaviors;
+        complete behaviors;
+
  */
 uint32_t csp_get_ms(void) {
     struct timespec ts;

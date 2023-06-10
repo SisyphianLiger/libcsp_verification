@@ -170,6 +170,9 @@ void csp_can_pbuf_cleanup(csp_can_interface_data_t * ifdata) {
 
 	    behavior packet_not_found:
         ensures \result == \null; 
+        
+        disjoint behaviors;
+        complete behaviors;
 */
 
 csp_packet_t * csp_can_pbuf_find(csp_can_interface_data_t * ifdata, uint32_t id, uint32_t mask, int * task_woken) {
