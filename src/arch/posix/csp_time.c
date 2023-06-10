@@ -7,7 +7,7 @@
 #include <limits.h>
 
 #define RESET_CLOCK 0
-
+#define MAX_U32 4294967295
 /*@ 
         lemma clock_gettime_res:
             \forall int clock_res; clock_res == 0 || clock_res == -1;
@@ -23,28 +23,25 @@
 
         disjoint behaviors;
         complete behaviors;
-
  */
+
 uint32_t csp_get_ms(void) {
     struct timespec ts;
     //@ assert \valid(&(ts));
     int clock_res = clock_gettime(CLOCK_MONOTONIC, &ts) == 0;
     //@ assert clock_res == 0 || clock_res == -1 && \valid(&(ts));
-	if (0 == clock_res) {
-        //@ assert clock_res == 0 && \valid(&(ts));
-        long result = ((ts.tv_sec * 1000) + (ts.tv_nsec / 1000000));   
-        /*@ assert result <= INT_MAX && result >= 0 || 
-                   result < INT_MAX && result > 0 && 
-                   clock_res == 0  && 
-                   \valid(&(ts)); */
-        if ( result < 0 || result > INT_MAX)
-            //@ assert result > INT_MAX || result < 0 && clock_res == 0 && \valid(&(ts));
-            return RESET_CLOCK;
-        //@ assert result < INT_MAX && result > 0 && clock_res == 0 && \valid(&(ts)); 
-		return (uint32_t) result;         	
+    uint64_t result = ((ts.tv_sec * 1000) + (ts.tv_nsec / 1000000));   
+    /*@ assert result <= MAX_U32 || result > MAX_U32 && 
+               clock_res == 0 || clock_res == -1 &&
+               \valid(&(ts)); */
+    if ( result > MAX_U32 || -1 == clock_res ){
+        //@ assert result > MAX_U32 || clock_res == -1 && \valid(&(ts));
+        return RESET_CLOCK;
+    } else {
+        /*@ assert result <= MAX_U32 && clock_res == 0 && \valid(&(ts)); */
+        return (uint32_t) result;         	
+        /*@ assert result <= MAX_U32 && clock_res == 0 && \valid(&(ts)); */
     }
-    //@ assert clock_res == -1 && \valid(&(ts)); 
-	return RESET_CLOCK;
 }
 
 /*@
