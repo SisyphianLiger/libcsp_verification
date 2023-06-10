@@ -16,7 +16,7 @@
         requires \true;
 
         behavior clock_returns_valid_time:
-        ensures \result <= MAX_U32 && \result >= 0;
+        ensures \result >= 0 && \result <= MAX_U32;
 
         behavior clock_gettime_fails_or_overflows:
         ensures \result == RESET_CLOCK;
